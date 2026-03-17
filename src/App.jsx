@@ -73,11 +73,9 @@ export default function App() {
   const getDeck = (id) => id === 'a' ? deckA : deckB
 
   const handleFileLoad = async (deckId, file) => {
-    console.log(`Loading file for deck ${deckId}: ${file.name}`);
     initAudio()
     try {
       const info = await loadAudioFile(deckId, file)
-      console.log(`File loaded for deck ${deckId}, buffer: ${!!info.buffer}`);
       const waveform = extractWaveformData(info.buffer || {}, 150)
       setDeck(deckId, {
         title: file.name.replace(/\.[^.]+$/, ''),

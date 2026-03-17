@@ -77,7 +77,6 @@ export async function loadAudioFile(deckId, file) {
 export function playDeck(deckId) {
   const ctx = initAudio();
   const deck = decks[deckId];
-  console.log(`Attempting to play deck ${deckId}, buffer exists: ${!!deck.buffer}`);
   if (!deck.buffer) return false;
   if (deck.playing) stopDeck(deckId);
 
@@ -88,7 +87,6 @@ export function playDeck(deckId) {
   deck.startTime = ctx.currentTime - deck.offset;
   deck.playing = true;
   deck.source.onended = () => { deck.playing = false; };
-  console.log(`Deck ${deckId} started playing`);
   return true;
 }
 
