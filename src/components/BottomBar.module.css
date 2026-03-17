@@ -1,0 +1,121 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 16px;
+  height: 44px;
+}
+
+.genreFilters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+.genreBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  transition: all 0.1s;
+}
+.genreBtn:hover {
+  border-color: var(--border-md);
+  color: var(--text-dim);
+}
+.genreActive {
+  border-color: var(--accent-a) !important;
+  color: var(--accent-a) !important;
+  background: rgba(200,80,248,0.08) !important;
+}
+
+.deckStatus {
+  display: flex;
+  gap: 8px;
+}
+.statusChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.statusDot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.dotPlaying { animation: pulse 0.6s infinite; }
+.statusBpm { font-size: 9px; color: var(--text-muted); font-weight: 400; }
+
+.recControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recTimer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--red);
+}
+.recDot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 0.8s infinite;
+  display: inline-block;
+}
+.recBtn {
+  background: rgba(255,23,68,0.1);
+  border: 1px solid rgba(255,23,68,0.3);
+  color: var(--red);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.recBtn:hover { background: rgba(255,23,68,0.18); }
+.recActive {
+  background: rgba(255,23,68,0.2) !important;
+  border-color: var(--red) !important;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.exportBtn {
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--accent-b);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  transition: all 0.12s;
+  cursor: pointer;
+}
+.exportBtn:hover:not(:disabled) { background: rgba(0,212,255,0.15); }
+.exportBtn:disabled { opacity: 0.5; cursor: not-allowed; }

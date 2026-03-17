@@ -1,0 +1,58 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.btn {
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--accent-b);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 5px 14px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(0,212,255,0.15);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading_ffmpeg,
+.converting {
+  color: var(--yellow) !important;
+  border-color: rgba(255,234,0,0.3) !important;
+  background: rgba(255,234,0,0.06) !important;
+}
+
+.done {
+  color: var(--green) !important;
+  border-color: rgba(0,230,118,0.3) !important;
+  background: rgba(0,230,118,0.06) !important;
+}
+
+.error {
+  color: var(--red) !important;
+  border-color: rgba(255,23,68,0.3) !important;
+  background: rgba(255,23,68,0.06) !important;
+}
+
+.progressBar {
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: var(--yellow);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
