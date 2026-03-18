@@ -3,18 +3,18 @@
   --surface: #0e0e18;
   --card: #13131e;
   --card2: #181825;
-  --border: rgba(255,255,255,0.07);
-  --border-md: rgba(255,255,255,0.13);
-  --accent-a: #c850f8;
-  --accent-b: #00d4ff;
-  --accent-a-dim: rgba(200,80,248,0.15);
-  --accent-b-dim: rgba(0,212,255,0.15);
-  --text: #e8e8f0;
-  --text-dim: rgba(232,232,240,0.45);
-  --text-muted: rgba(232,232,240,0.25);
-  --green: #00e676;
-  --red: #ff1744;
-  --yellow: #ffea00;
+  --border: rgba(255,255,255,0.15);
+  --border-md: rgba(255,255,255,0.25);
+  --accent-a: #d880f8;
+  --accent-b: #33e4ff;
+  --accent-a-dim: rgba(200,80,248,0.25);
+  --accent-b-dim: rgba(0,212,255,0.25);
+  --text: #ffffff;
+  --text-dim: rgba(255,255,255,0.7);
+  --text-muted: rgba(255,255,255,0.5);
+  --green: #00ff80;
+  --red: #ff3355;
+  --yellow: #ffff33;
   --font-mono: 'IBM Plex Mono', 'Space Mono', monospace;
 }
 

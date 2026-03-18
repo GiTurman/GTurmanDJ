@@ -5,7 +5,7 @@ export default function MixerCenter({
   crossfader, onCrossfader,
   suggestions, isLoadingAI,
   genres, selectedGenre, onGenre,
-  onLoadSuggestion, onAISuggestDeck, onAISuggestBoth, onRefreshAI,
+  onLoadSuggestion, onOpenMixPlan, onAISuggestDeck, onAISuggestBoth, onRefreshAI,
   hasApiKey,
   deckAVol, deckBVol, onDeckAVol, onDeckBVol,
 }) {
@@ -104,6 +104,7 @@ export default function MixerCenter({
                 track={track}
                 onLoadA={() => onLoadSuggestion(track, 'a')}
                 onLoadB={() => onLoadSuggestion(track, 'b')}
+                onOpenMixPlan={onOpenMixPlan}
               />
             ))
           )}
@@ -114,7 +115,7 @@ export default function MixerCenter({
   )
 }
 
-function SuggestionCard({ track, onLoadA, onLoadB }) {
+function SuggestionCard({ track, onLoadA, onLoadB, onOpenMixPlan }) {
   return (
     <div className={styles.suggestionCard}>
       <div className={styles.suggestionInfo}>
@@ -138,6 +139,9 @@ function SuggestionCard({ track, onLoadA, onLoadB }) {
         </div>
       </div>
       <div className={styles.suggestionActions}>
+        <button className={styles.mixPlanBtn} onClick={() => onOpenMixPlan(track)}>
+          PLAN
+        </button>
         <button
           className={styles.loadBtn}
           style={{ color: 'var(--accent-a)', borderColor: 'rgba(200,80,248,0.3)' }}

@@ -1,4 +1,4 @@
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
 
 export async function getAISuggestions({ deckA, deckB, genre, apiKey, count = 5 }) {
   if (!apiKey) throw new Error('API key required');
@@ -7,14 +7,14 @@ export async function getAISuggestions({ deckA, deckB, genre, apiKey, count = 5 
   if (deckA?.title) deckInfo.push(`Deck A: "${deckA.title}" by ${deckA.artist} (${deckA.genre}, ${deckA.bpm} BPM, Key: ${deckA.key})`);
   if (deckB?.title) deckInfo.push(`Deck B: "${deckB.title}" by ${deckB.artist} (${deckB.genre}, ${deckB.bpm} BPM, Key: ${deckB.key})`);
 
-  const prompt = `You are an expert DJ assistant. Currently playing:\n${deckInfo.join('\n') || 'No tracks'}\nGenre filter: ${genre || 'ALL'}\n\nSuggest ${count} real tracks that mix well. Consider BPM (+-10), Camelot key, energy flow.\n\nReturn ONLY this JSON, no other text:\n{"suggestions":[{"title":"","artist":"","genre":"","bpm":128,"key":"C MAJ","camelot":"8B","energy":7,"matchScore":90,"mixTip":"Short tip"}]}`;
+  const prompt = `You are an expert DJ assistant. Currently playing:\n${deckInfo.join('\n') || 'No tracks'}\nGenre filter: ${genre || 'ALL'}\n\nSuggest ${count} real tracks that mix well. Consider BPM (+-10), Camelot key, energy flow.\n\nFOR EACH TRACK, PROVIDE A DETAILED "MIX PLAN":\n- When to start the mix (e.g., "at 3:00 mark of current track").\n- EQ instructions (e.g., "cut bass on current track, boost mid on new track").\n- Transition style (e.g., "fast cut", "long blend").\n\nReturn ONLY this JSON, no other text:\n{"suggestions":[{"title":"","artist":"","genre":"","bpm":128,"key":"C MAJ","camelot":"8B","energy":7,"matchScore":90,"mixTip":"Short tip", "mixPlan": "Detailed instructions"}]}`;
 
   const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.8, maxOutputTokens: 1024, responseMimeType: 'application/json' }
+      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, responseMimeType: 'application/json' }
     })
   });
 

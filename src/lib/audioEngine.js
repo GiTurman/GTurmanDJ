@@ -55,12 +55,15 @@ function buildAudioGraph() {
 
 export function initAudio() {
   if (!audioContext) {
+    console.log("Initializing AudioContext...");
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     buildAudioGraph();
+    console.log("AudioContext initialized and graph built.");
   }
 
   // CRITICAL: resume suspended context (browser autoplay policy)
   if (audioContext.state === 'suspended') {
+    console.log("Resuming AudioContext...");
     audioContext.resume();
   }
 
@@ -91,27 +94,37 @@ export async function loadAudioFile(deckId, file) {
 
 export async function playDeck(deckId) {
   const ctx = initAudio();
+  console.log(`Attempting to play deck ${deckId}...`);
 
   // Always resume before playing
   if (ctx.state === 'suspended') await ctx.resume();
 
   const deck = decks[deckId];
-  if (!deck.buffer) return false;
+  if (!deck.buffer) {
+    console.log(`Deck ${deckId} has no buffer.`);
+    return false;
+  }
   if (deck.playing) stopDeck(deckId);
 
   // Rebuild gainNode if graph was lost
-  if (!deck.gainNode) buildAudioGraph();
+  if (!deck.gainNode) {
+    console.log(`Rebuilding graph for deck ${deckId}...`);
+    buildAudioGraph();
+  }
 
   deck.source = ctx.createBufferSource();
   deck.source.buffer = deck.buffer;
+  console.log(`Connecting deck ${deckId} source to gainNode...`);
   deck.source.connect(deck.gainNode);
 
   const startOffset = Math.max(0, Math.min(deck.offset, deck.buffer.duration - 0.01));
+  console.log(`Starting deck ${deckId} at ${startOffset}...`);
   deck.source.start(0, startOffset);
   deck.startTime = ctx.currentTime - startOffset;
   deck.playing = true;
 
   deck.source.onended = () => {
+    console.log(`Deck ${deckId} playback ended.`);
     deck.playing = false;
     deck.offset = 0;
   };

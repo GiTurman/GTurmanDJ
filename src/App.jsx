@@ -4,6 +4,7 @@ import Deck from './components/Deck.jsx'
 import MixerCenter from './components/MixerCenter.jsx'
 import BottomBar from './components/BottomBar.jsx'
 import APIKeyModal from './components/APIKeyModal.jsx'
+import MixPlanModal from './components/MixPlanModal.jsx'
 import styles from './App.module.css'
 import { getAISuggestions } from './lib/geminiService.js'
 import { getStaticSuggestions, GENRES } from './lib/trackDatabase.js'
@@ -46,6 +47,8 @@ export default function App() {
     try { return localStorage.getItem('gemini_api_key') || '' } catch { return '' }
   })
   const [showApiModal, setShowApiModal] = useState(false)
+  const [showMixPlanModal, setShowMixPlanModal] = useState(false)
+  const [selectedTrackForMixPlan, setSelectedTrackForMixPlan] = useState(null)
   const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recSeconds, setRecSeconds] = useState(0)
@@ -237,6 +240,11 @@ export default function App() {
     refreshSuggestions(selectedGenre, deckA, deckB)
   }
 
+  const handleOpenMixPlan = (track) => {
+    setSelectedTrackForMixPlan(track)
+    setShowMixPlanModal(true)
+  }
+
   return (
     <div className={styles.app}>
       <Header
@@ -258,6 +266,7 @@ export default function App() {
           suggestions={suggestions} isLoadingAI={isLoadingAI}
           genres={GENRES} selectedGenre={selectedGenre} onGenre={handleGenreFilter}
           onLoadSuggestion={handleLoadSuggestion}
+          onOpenMixPlan={handleOpenMixPlan}
           onAISuggestDeck={() => refreshSuggestions(selectedGenre, deckA, deckB)}
           onAISuggestBoth={handleAISuggestBoth}
           onRefreshAI={() => refreshSuggestions(selectedGenre, deckA, deckB)}
@@ -277,6 +286,9 @@ export default function App() {
         deckA={deckA} deckB={deckB} />
       {showApiModal && (
         <APIKeyModal currentKey={apiKey} onSave={handleSaveApiKey} onClose={() => setShowApiModal(false)} />
+      )}
+      {showMixPlanModal && (
+        <MixPlanModal track={selectedTrackForMixPlan} onClose={() => setShowMixPlanModal(false)} />
       )}
     </div>
   )

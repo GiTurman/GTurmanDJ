@@ -243,6 +243,26 @@
   gap: 4px;
   flex-shrink: 0;
 }
+.mixPlanBtn {
+  background: transparent;
+  border: 1px solid #f27d26;
+  color: #f27d26;
+  font-size: 8px;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.mixPlanBtn:hover {
+  background: #f27d26;
+  color: white;
+}
 .loadBtn {
   background: transparent;
   border: 1px solid;
