@@ -50,7 +50,7 @@ export async function loadFile(deckId, file) {
   decks[deckId].buf = buf
   decks[deckId].offset = 0
   decks[deckId].playing = false
-  if (decks[deckId].src) { try { decks[deckId].src.stop() } catch {} }
+  if (decks[deckId].src) { try { decks[deckId].src.stop() } catch (e) { console.error(e) } }
   decks[deckId].src = null
   const bpm = detectBPM(buf)
   const waveform = getWaveform(buf, 180)
@@ -83,7 +83,7 @@ export function stop(deckId) {
       d.offset = Math.max(0, ctx.currentTime - d.startTime)
       d.src.onended = null
       d.src.stop()
-    } catch {}
+    } catch (e) { console.error(e) }
     d.src = null
     d.playing = false
   }

@@ -8,12 +8,12 @@ import BottomBar from './components/BottomBar.jsx'
 import APIModal from './components/APIModal.jsx'
 import {
   initAudio, loadFile, play, stop, cue, getPosition,
-  setVolume, setMaster, setCrossfader, setEQ, syncBPM,
+  setVolume, setMaster, setCrossfader, setEQ,
   startRec, stopRec
 } from './lib/audio.js'
 import { getSuggestions } from './lib/gemini.js'
 import { staticSuggestions, GENRES } from './lib/tracks.js'
-import { exportMP3 } from './lib/export.js'
+import { exportMix } from './lib/export.js'
 import styles from './App.module.css'
 
 const makeDeck = id => ({
@@ -34,11 +34,9 @@ const makeDeck = id => ({
 export default function App() {
   const [deckA, setDeckA] = useState(makeDeck('a'))
   const [deckB, setDeckB] = useState(makeDeck('b'))
-  const [cf, setCF] = useState(50)
   const [master, setMasterVol] = useState(80)
   const [genre, setGenre] = useState('ALL')
   const [suggestions, setSuggestions] = useState([])
-  const [loadingAI, setLoadingAI] = useState(false)
   const [apiKey, setApiKey] = useState(() => { try { return localStorage.getItem('aimix_key') || '' } catch { return '' } })
   const [showModal, setShowModal] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -77,7 +75,6 @@ export default function App() {
   const gd = id => id === 'a' ? deckA : deckB
 
   const fetchSuggestions = useCallback(async (g, da, db) => {
-    setLoadingAI(true)
     try {
       let tracks = null
       if (apiKey) tracks = await getSuggestions({ deckA: da, deckB: db, genre: g, apiKey, count: 6 })
@@ -85,8 +82,6 @@ export default function App() {
       setSuggestions(tracks)
     } catch {
       setSuggestions(staticSuggestions({ deckA: da, deckB: db, genre: g, count: 6 }))
-    } finally {
-      setLoadingAI(false)
     }
   }, [apiKey])
 
@@ -114,18 +109,10 @@ export default function App() {
 
   const handleCue = (deckId) => { cue(deckId); sd(deckId, { playing: false, position: 0 }) }
 
-  const handleSync = (deckId) => {
-    const deck = gd(deckId)
-    const other = gd(deckId === 'a' ? 'b' : 'a')
-    const newSynced = !deck.synced
-    if (newSynced && deck.hasFile) syncBPM(deckId, deck.bpm, other.bpm)
-    sd(deckId, { synced: newSynced, bpm: newSynced ? other.bpm : gd(deckId).bpm })
-  }
-
   const handleVolume = (deckId, v) => { setVolume(deckId, v); sd(deckId, { volume: v }) }
   const handleEQ = (deckId, band, v) => { setEQ(deckId, band, v); sd(deckId, d => ({ eq: { ...d.eq, [band]: parseInt(v) } })) }
-  const handleCF = (v) => { setCF(v); setCrossfader(v) }
   const handleMaster = (v) => { setMasterVol(v); setMaster(v) }
+  const handleCF = (v) => { setCrossfader(v) }
 
   const handleGenre = (g) => {
     setGenre(g)
@@ -160,51 +147,43 @@ export default function App() {
   const handleExport = async () => {
     if (!recRef.current) { alert('ჯერ ჩაწერე მიქსი — RECORD დააჭირე'); return }
     setExportProg(0)
-    try { await exportMP3(recRef.current, setExportProg) }
+    try { await exportMix(recRef.current, setExportProg) }
     catch (e) { alert('Export error: ' + e.message) }
     finally { setTimeout(() => setExportProg(null), 3000) }
   }
 
   const handleSaveKey = (key) => {
     setApiKey(key)
-    try { localStorage.setItem('aimix_key', key) } catch {}
+    try { localStorage.setItem('aimix_key', key) } catch (e) { console.error(e) }
     setShowModal(false)
     fetchSuggestions(genre, deckA, deckB)
   }
 
   return (
     <div className={styles.app}>
-      <Header bpm={Math.round((deckA.bpm + deckB.bpm) / 2)} master={master} onMaster={handleMaster}
+      <Header bpm={Math.round((deckA.bpm + deckB.bpm) / 2)} volume={master} aiStatus={!!apiKey} onMaster={handleMaster}
         hasKey={!!apiKey} onKeyClick={() => setShowModal(true)} tip={tip} />
 
       <div className={styles.body}>
-        <DeckPanel deck={deckA} deckId="a"
-          onPlay={() => handlePlay('a')} onCue={() => handleCue('a')}
-          onSync={() => handleSync('a')} onLoop={() => sd('a', d => ({ looping: !d.looping }))}
-          onVolume={v => handleVolume('a', v)} onEQ={(b, v) => handleEQ('a', b, v)}
-          onFile={f => handleFileLoad('a', f)} />
+        <DeckPanel id="a" track={deckA} position={deckA.position}
+          onPlay={() => handlePlay('a')} onStop={() => stop('a')} onCue={() => handleCue('a')}
+          onFileLoad={f => handleFileLoad('a', f)}
+          onVolume={v => handleVolume('a', v)} onEQ={(b, v) => handleEQ('a', b, v)} />
 
-        <Mixer cf={cf} onCF={handleCF}
-          volA={deckA.volume} volB={deckB.volume}
-          onVolA={v => handleVolume('a', v)} onVolB={v => handleVolume('b', v)} />
+        <Mixer onCrossfader={handleCF} onMasterVolume={handleMaster} />
 
         <SuggestionPanel
-          suggestions={suggestions} loading={loadingAI} hasKey={!!apiKey}
-          onRefresh={() => fetchSuggestions(genre, deckA, deckB)}
-          onSuggestBoth={handleSuggestBoth}
-          onLoadA={t => handleLoadTrack(t, 'a')}
-          onLoadB={t => handleLoadTrack(t, 'b')} />
+          suggestions={suggestions}
+          onLoad={t => handleLoadTrack(t, 'a')} />
 
-        <DeckPanel deck={deckB} deckId="b"
-          onPlay={() => handlePlay('b')} onCue={() => handleCue('b')}
-          onSync={() => handleSync('b')} onLoop={() => sd('b', d => ({ looping: !d.looping }))}
-          onVolume={v => handleVolume('b', v)} onEQ={(b, v) => handleEQ('b', b, v)}
-          onFile={f => handleFileLoad('b', f)} />
+        <DeckPanel id="b" track={deckB} position={deckB.position}
+          onPlay={() => handlePlay('b')} onStop={() => stop('b')} onCue={() => handleCue('b')}
+          onFileLoad={f => handleFileLoad('b', f)}
+          onVolume={v => handleVolume('b', v)} onEQ={(b, v) => handleEQ('b', b, v)} />
 
         <MixPlanner
-          apiKey={apiKey}
-          genre={genre}
-          onLoadToDeck={handleLoadTrack} />
+          plan={suggestions}
+          onGenerate={handleSuggestBoth} />
       </div>
 
       <BottomBar genre={genre} genres={GENRES} onGenre={handleGenre}

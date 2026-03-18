@@ -1,0 +1,8 @@
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.logo { font-weight: 700; letter-spacing: 0.1em; color: var(--accent-a); }
+.stats { display: flex; gap: 2rem; font-size: 0.8rem; }
+.stat span { color: var(--accent-b); font-weight: 600; }
+.aiStatus { color: var(--green); }

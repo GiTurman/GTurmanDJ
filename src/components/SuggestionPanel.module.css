@@ -1,0 +1,3 @@
+.panel { padding: 1rem; background: var(--card); border-radius: 8px; }
+.track { padding: 0.5rem; border-bottom: 1px solid var(--border); cursor: pointer; }
+.meta { font-size: 0.7rem; color: var(--text-muted); }
