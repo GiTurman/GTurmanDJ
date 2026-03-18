@@ -18,6 +18,6 @@ export default defineConfig({
   },
   build: { outDir: 'dist' },
   optimizeDeps: {
-    exclude: ['lamejs', '@ffmpeg/ffmpeg', '@ffmpeg/util']
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
   }
 })

@@ -3,6 +3,7 @@ import Header from './components/Header.jsx'
 import DeckPanel from './components/DeckPanel.jsx'
 import Mixer from './components/Mixer.jsx'
 import SuggestionPanel from './components/SuggestionPanel.jsx'
+import MixPlanner from './components/MixPlanner.jsx'
 import BottomBar from './components/BottomBar.jsx'
 import APIModal from './components/APIModal.jsx'
 import {
@@ -47,7 +48,6 @@ export default function App() {
   const recRef = useRef(null)
   const recInterval = useRef(null)
 
-  // position update loop
   useEffect(() => {
     const id = setInterval(() => {
       setDeckA(d => ({ ...d, position: getPosition('a') }))
@@ -56,7 +56,6 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
-  // recording timer
   useEffect(() => {
     if (recording) {
       recInterval.current = setInterval(() => setRecSec(s => s + 1), 1000)
@@ -67,7 +66,6 @@ export default function App() {
     return () => clearInterval(recInterval.current)
   }, [recording])
 
-  // load suggestions on mount & when key/genre changes
   useEffect(() => {
     fetchSuggestions(genre, deckA, deckB)
   }, [apiKey])
@@ -114,10 +112,7 @@ export default function App() {
     else { await play(deckId); sd(deckId, { playing: true }) }
   }
 
-  const handleCue = (deckId) => {
-    cue(deckId)
-    sd(deckId, { playing: false, position: 0 })
-  }
+  const handleCue = (deckId) => { cue(deckId); sd(deckId, { playing: false, position: 0 }) }
 
   const handleSync = (deckId) => {
     const deck = gd(deckId)
@@ -127,25 +122,10 @@ export default function App() {
     sd(deckId, { synced: newSynced, bpm: newSynced ? other.bpm : gd(deckId).bpm })
   }
 
-  const handleVolume = (deckId, v) => {
-    setVolume(deckId, v)
-    sd(deckId, { volume: v })
-  }
-
-  const handleEQ = (deckId, band, v) => {
-    setEQ(deckId, band, v)
-    sd(deckId, d => ({ eq: { ...d.eq, [band]: parseInt(v) } }))
-  }
-
-  const handleCF = (v) => {
-    setCF(v)
-    setCrossfader(v)
-  }
-
-  const handleMaster = (v) => {
-    setMasterVol(v)
-    setMaster(v)
-  }
+  const handleVolume = (deckId, v) => { setVolume(deckId, v); sd(deckId, { volume: v }) }
+  const handleEQ = (deckId, band, v) => { setEQ(deckId, band, v); sd(deckId, d => ({ eq: { ...d.eq, [band]: parseInt(v) } })) }
+  const handleCF = (v) => { setCF(v); setCrossfader(v) }
+  const handleMaster = (v) => { setMasterVol(v); setMaster(v) }
 
   const handleGenre = (g) => {
     setGenre(g)
@@ -173,12 +153,8 @@ export default function App() {
 
   const handleRecord = async () => {
     initAudio()
-    if (!recording) {
-      startRec(); setRecording(true); recRef.current = null
-    } else {
-      const blob = await stopRec()
-      recRef.current = blob; setRecording(false)
-    }
+    if (!recording) { startRec(); setRecording(true); recRef.current = null }
+    else { const blob = await stopRec(); recRef.current = blob; setRecording(false) }
   }
 
   const handleExport = async () => {
@@ -196,11 +172,9 @@ export default function App() {
     fetchSuggestions(genre, deckA, deckB)
   }
 
-  const avgBpm = Math.round((deckA.bpm + deckB.bpm) / 2)
-
   return (
     <div className={styles.app}>
-      <Header bpm={avgBpm} master={master} onMaster={handleMaster}
+      <Header bpm={Math.round((deckA.bpm + deckB.bpm) / 2)} master={master} onMaster={handleMaster}
         hasKey={!!apiKey} onKeyClick={() => setShowModal(true)} tip={tip} />
 
       <div className={styles.body}>
@@ -215,8 +189,7 @@ export default function App() {
           onVolA={v => handleVolume('a', v)} onVolB={v => handleVolume('b', v)} />
 
         <SuggestionPanel
-          suggestions={suggestions} loading={loadingAI}
-          hasKey={!!apiKey}
+          suggestions={suggestions} loading={loadingAI} hasKey={!!apiKey}
           onRefresh={() => fetchSuggestions(genre, deckA, deckB)}
           onSuggestBoth={handleSuggestBoth}
           onLoadA={t => handleLoadTrack(t, 'a')}
@@ -227,6 +200,11 @@ export default function App() {
           onSync={() => handleSync('b')} onLoop={() => sd('b', d => ({ looping: !d.looping }))}
           onVolume={v => handleVolume('b', v)} onEQ={(b, v) => handleEQ('b', b, v)}
           onFile={f => handleFileLoad('b', f)} />
+
+        <MixPlanner
+          apiKey={apiKey}
+          genre={genre}
+          onLoadToDeck={handleLoadTrack} />
       </div>
 
       <BottomBar genre={genre} genres={GENRES} onGenre={handleGenre}
