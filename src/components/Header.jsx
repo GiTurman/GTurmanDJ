@@ -1,46 +1,24 @@
-// components/Header.jsx
-import styles from './Header.module.css'
+import s from './Header.module.css'
 
-export default function Header({ bpm, masterVol, onMasterVol, hasApiKey, onApiKeyClick, mixTip }) {
+export default function Header({ bpm, master, onMaster, hasKey, onKeyClick, tip }) {
   return (
-    <header className={styles.header}>
-      <div className={styles.logo}>
-        AI<span>MIX</span>
-        <div className={styles.logoSub}>DJ MIXER</div>
+    <header className={s.header}>
+      <div className={s.logo}>AI<span>MIX</span></div>
+
+      <div className={s.tip}>
+        {tip && <><span className={s.tipDot}>✦</span>{tip}</>}
       </div>
 
-      <div className={styles.center}>
-        {mixTip && (
-          <div className={styles.mixTip}>
-            <span className={styles.tipIcon}>✦</span>
-            {mixTip}
-          </div>
-        )}
-      </div>
-
-      <div className={styles.right}>
-        <div className={styles.bpmDisplay}>
-          <span className={styles.bpmVal}>{bpm}</span>
-          <span className={styles.bpmLabel}>BPM</span>
+      <div className={s.right}>
+        <div className={s.bpm}><span className={s.bpmNum}>{bpm}</span><span className={s.bpmLbl}>BPM</span></div>
+        <div className={s.vol}>
+          <span className={s.volLbl}>MASTER</span>
+          <input type="range" min="0" max="100" value={master} onChange={e => onMaster(+e.target.value)} />
+          <span className={s.volVal}>{master}%</span>
         </div>
-
-        <div className={styles.masterVol}>
-          <span className={styles.volLabel}>MASTER</span>
-          <input
-            type="range" min="0" max="100" value={masterVol}
-            onChange={e => onMasterVol(parseInt(e.target.value))}
-            className={styles.masterSlider}
-          />
-          <span className={styles.volVal}>{masterVol}%</span>
-        </div>
-
-        <button
-          className={`${styles.apiBtn} ${hasApiKey ? styles.apiBtnActive : ''}`}
-          onClick={onApiKeyClick}
-          title={hasApiKey ? 'Gemini AI connected' : 'Connect Google AI Studio'}
-        >
-          <span className={hasApiKey ? styles.aiDotOn : styles.aiDotOff}></span>
-          {hasApiKey ? 'AI ON' : 'ADD AI KEY'}
+        <button className={`${s.key} ${hasKey ? s.keyOn : ''}`} onClick={onKeyClick}>
+          <span className={hasKey ? s.dotOn : s.dotOff} />
+          {hasKey ? 'AI ON' : 'ADD KEY'}
         </button>
       </div>
     </header>

@@ -1,44 +1,41 @@
-import styles from './BottomBar.module.css'
+import s from './BottomBar.module.css'
 
-export default function BottomBar({
-  selectedGenre, genres, onGenre,
-  recording, recSeconds, onRecord,
-  onExport, exportProgress,
-  deckA, deckB,
-}) {
-  const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`
-  const exportLabel = exportProgress === null ? '↓ MP3' : exportProgress >= 100 ? '✓ SAVED' : `⚙ ${exportProgress}%`
+export default function BottomBar({ genre, genres, onGenre, recording, recSec, onRecord, onExport, exportProg, deckA, deckB }) {
+  const fmt = sec => `${Math.floor(sec/60).toString().padStart(2,'0')}:${(sec%60).toString().padStart(2,'0')}`
+  const expLabel = exportProg === null ? '↓ MP3' : exportProg >= 100 ? '✓ SAVED' : `⚙ ${exportProg}%`
 
   return (
-    <div className={styles.bar}>
-      <div className={styles.genreFilters}>
+    <div className={s.bar}>
+      <div className={s.genres}>
         {genres.map(g => (
-          <button key={g} className={`${styles.genreBtn} ${selectedGenre === g ? styles.genreActive : ''}`} onClick={() => onGenre(g)}>
-            {g}
-          </button>
+          <button key={g} className={`${s.genre} ${genre === g ? s.active : ''}`} onClick={() => onGenre(g)}>{g}</button>
         ))}
       </div>
-      <div className={styles.deckStatus}>
-        <div className={styles.statusChip} style={{ borderColor: 'rgba(200,80,248,0.3)' }}>
-          <span className={styles.statusDot} style={{ background: deckA.playing ? 'var(--accent-a)' : 'var(--border-md)' }} />
+
+      <div className={s.status}>
+        <div className={s.chip} style={{ borderColor: 'rgba(208,80,255,0.3)' }}>
+          <span className={s.dot} style={{ background: deckA.playing ? 'var(--accent-a)' : 'var(--border-md)', animation: deckA.playing ? 'blink 0.7s infinite' : 'none' }} />
           <span style={{ color: 'var(--accent-a)' }}>A</span>
-          <span className={styles.statusBpm}>{deckA.bpm} BPM</span>
+          <span className={s.chipBpm}>{deckA.bpm} BPM</span>
         </div>
-        <div className={styles.statusChip} style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
-          <span className={styles.statusDot} style={{ background: deckB.playing ? 'var(--accent-b)' : 'var(--border-md)' }} />
+        <div className={s.chip} style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
+          <span className={s.dot} style={{ background: deckB.playing ? 'var(--accent-b)' : 'var(--border-md)', animation: deckB.playing ? 'blink 0.7s infinite' : 'none' }} />
           <span style={{ color: 'var(--accent-b)' }}>B</span>
-          <span className={styles.statusBpm}>{deckB.bpm} BPM</span>
+          <span className={s.chipBpm}>{deckB.bpm} BPM</span>
         </div>
       </div>
-      <div className={styles.recControls}>
-        {recording && <span className={styles.recTimer}><span className={styles.recDot} />{fmt(recSeconds)}</span>}
-        <button className={`${styles.recBtn} ${recording ? styles.recActive : ''}`} onClick={onRecord}>
+
+      <div className={s.rec}>
+        {recording && (
+          <span className={s.timer}><span className={s.recDot} />{fmt(recSec)}</span>
+        )}
+        <button className={`${s.recBtn} ${recording ? s.recOn : ''}`} onClick={onRecord}>
           {recording ? '⏹ STOP' : '⏺ RECORD'}
         </button>
-        <button className={styles.exportBtn} onClick={onExport}
-          disabled={exportProgress !== null && exportProgress < 100}
-          style={exportProgress >= 100 ? { color: 'var(--green)', borderColor: 'rgba(0,230,118,0.3)' } : {}}>
-          {exportLabel}
+        <button className={s.expBtn} onClick={onExport}
+          disabled={exportProg !== null && exportProg < 100}
+          style={exportProg >= 100 ? { color: 'var(--green)', borderColor: 'rgba(0,230,118,0.3)' } : {}}>
+          {expLabel}
         </button>
       </div>
     </div>

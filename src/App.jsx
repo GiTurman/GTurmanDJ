@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Header from './components/Header.jsx'
-import Deck from './components/Deck.jsx'
-import MixerCenter from './components/MixerCenter.jsx'
+import DeckPanel from './components/DeckPanel.jsx'
+import Mixer from './components/Mixer.jsx'
+import SuggestionPanel from './components/SuggestionPanel.jsx'
 import BottomBar from './components/BottomBar.jsx'
-import APIKeyModal from './components/APIKeyModal.jsx'
-import MixPlanModal from './components/MixPlanModal.jsx'
-import styles from './App.module.css'
-import { getAISuggestions } from './lib/geminiService.js'
-import { getStaticSuggestions, GENRES } from './lib/trackDatabase.js'
+import APIModal from './components/APIModal.jsx'
 import {
-  initAudio, loadAudioFile, playDeck, stopDeck, cueDeck,
-  setDeckVolume, setMasterVolume, setCrossfader, setEQ, setDeckBPM,
-  getDeckPosition, startRecording, stopRecording, extractWaveformData
-} from './lib/audioEngine.js'
-import { exportMixAsMp3 } from './lib/mp3Export.js'
+  initAudio, loadFile, play, stop, cue, getPosition,
+  setVolume, setMaster, setCrossfader, setEQ, syncBPM,
+  startRec, stopRec
+} from './lib/audio.js'
+import { getSuggestions } from './lib/gemini.js'
+import { staticSuggestions, GENRES } from './lib/tracks.js'
+import { exportMP3 } from './lib/export.js'
+import styles from './App.module.css'
 
-const DEFAULT_DECK = (id) => ({
+const makeDeck = id => ({
   id,
   title: id === 'a' ? 'Strobe' : 'Around the World',
   artist: id === 'a' ? 'deadmau5' : 'Daft Punk',
@@ -24,272 +24,217 @@ const DEFAULT_DECK = (id) => ({
   key: id === 'a' ? 'F MIN' : 'G MIN',
   camelot: id === 'a' ? '4A' : '6A',
   energy: id === 'a' ? 6 : 7,
-  playing: false,
-  looping: false,
-  synced: false,
-  position: 0,
-  volume: 80,
-  gain: 100,
-  eq: { high: 0, mid: 0, low: 0 },
-  waveform: null,
-  duration: 0,
-  hasFile: false,
+  playing: false, looping: false, synced: false,
+  position: 0, volume: 80, eq: { high: 0, mid: 0, low: 0 },
+  waveform: Array.from({ length: 180 }, () => Math.random() * 0.7 + 0.15),
+  duration: 0, hasFile: false,
 })
 
 export default function App() {
-  const [deckA, setDeckA] = useState(DEFAULT_DECK('a'))
-  const [deckB, setDeckB] = useState(DEFAULT_DECK('b'))
-  const [crossfader, setCrossfaderState] = useState(50)
-  const [masterVol, setMasterVol] = useState(75)
+  const [deckA, setDeckA] = useState(makeDeck('a'))
+  const [deckB, setDeckB] = useState(makeDeck('b'))
+  const [cf, setCF] = useState(50)
+  const [master, setMasterVol] = useState(80)
+  const [genre, setGenre] = useState('ALL')
   const [suggestions, setSuggestions] = useState([])
-  const [selectedGenre, setSelectedGenre] = useState('ALL')
-  const [apiKey, setApiKey] = useState(() => {
-    try { return localStorage.getItem('gemini_api_key') || '' } catch { return '' }
-  })
-  const [showApiModal, setShowApiModal] = useState(false)
-  const [showMixPlanModal, setShowMixPlanModal] = useState(false)
-  const [selectedTrackForMixPlan, setSelectedTrackForMixPlan] = useState(null)
-  const [isLoadingAI, setIsLoadingAI] = useState(false)
+  const [loadingAI, setLoadingAI] = useState(false)
+  const [apiKey, setApiKey] = useState(() => { try { return localStorage.getItem('aimix_key') || '' } catch { return '' } })
+  const [showModal, setShowModal] = useState(false)
   const [recording, setRecording] = useState(false)
-  const [recSeconds, setRecSeconds] = useState(0)
-  const [mixTip, setMixTip] = useState('')
-  const [exportProgress, setExportProgress] = useState(null)
-  const positionIntervalRef = useRef(null)
-  const recIntervalRef = useRef(null)
-  const recordingBlobRef = useRef(null)
+  const [recSec, setRecSec] = useState(0)
+  const [exportProg, setExportProg] = useState(null)
+  const [tip, setTip] = useState('')
+  const recRef = useRef(null)
+  const recInterval = useRef(null)
 
+  // position update loop
   useEffect(() => {
-    refreshSuggestions('ALL', DEFAULT_DECK('a'), DEFAULT_DECK('b'))
+    const id = setInterval(() => {
+      setDeckA(d => ({ ...d, position: getPosition('a') }))
+      setDeckB(d => ({ ...d, position: getPosition('b') }))
+    }, 80)
+    return () => clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    positionIntervalRef.current = setInterval(() => {
-      setDeckA(d => ({ ...d, position: getDeckPosition('a') }))
-      setDeckB(d => ({ ...d, position: getDeckPosition('b') }))
-    }, 100)
-    return () => clearInterval(positionIntervalRef.current)
-  }, [])
-
+  // recording timer
   useEffect(() => {
     if (recording) {
-      recIntervalRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000)
+      recInterval.current = setInterval(() => setRecSec(s => s + 1), 1000)
     } else {
-      clearInterval(recIntervalRef.current)
-      setRecSeconds(0)
+      clearInterval(recInterval.current)
+      setRecSec(0)
     }
-    return () => clearInterval(recIntervalRef.current)
+    return () => clearInterval(recInterval.current)
   }, [recording])
 
-  const setDeck = (id, updater) => {
-    const setter = id === 'a' ? setDeckA : setDeckB
-    setter(d => typeof updater === 'function' ? updater(d) : { ...d, ...updater })
-  }
+  // load suggestions on mount & when key/genre changes
+  useEffect(() => {
+    fetchSuggestions(genre, deckA, deckB)
+  }, [apiKey])
 
-  const getDeck = (id) => id === 'a' ? deckA : deckB
+  const sd = (id, u) => {
+    const setter = id === 'a' ? setDeckA : setDeckB
+    setter(d => typeof u === 'function' ? { ...d, ...u(d) } : { ...d, ...u })
+  }
+  const gd = id => id === 'a' ? deckA : deckB
+
+  const fetchSuggestions = useCallback(async (g, da, db) => {
+    setLoadingAI(true)
+    try {
+      let tracks = null
+      if (apiKey) tracks = await getSuggestions({ deckA: da, deckB: db, genre: g, apiKey, count: 6 })
+      if (!tracks?.length) tracks = staticSuggestions({ deckA: da, deckB: db, genre: g, count: 6 })
+      setSuggestions(tracks)
+    } catch {
+      setSuggestions(staticSuggestions({ deckA: da, deckB: db, genre: g, count: 6 }))
+    } finally {
+      setLoadingAI(false)
+    }
+  }, [apiKey])
 
   const handleFileLoad = async (deckId, file) => {
     try {
       initAudio()
-      const info = await loadAudioFile(deckId, file)
-      const waveform = extractWaveformData(info.buffer, 150)
-      setDeck(deckId, {
+      const info = await loadFile(deckId, file)
+      sd(deckId, {
         title: file.name.replace(/\.[^.]+$/, ''),
-        artist: 'Local File',
-        genre: '—',
+        artist: 'Local File', genre: '—',
         bpm: Math.round(info.bpm) || 128,
         duration: Math.round(info.duration),
-        waveform,
-        hasFile: true,
-        playing: false,
-        position: 0,
+        waveform: info.waveform,
+        hasFile: true, playing: false, position: 0,
       })
-    } catch (e) {
-      console.error('Failed to load audio:', e)
-    }
+    } catch (e) { console.error(e) }
   }
 
-  const handlePlay = (deckId) => {
+  const handlePlay = async (deckId) => {
     initAudio()
-    const deck = getDeck(deckId)
-    if (deck.playing) {
-      stopDeck(deckId)
-      setDeck(deckId, { playing: false })
-    } else {
-      playDeck(deckId)
-      setDeck(deckId, { playing: true })
-    }
+    const deck = gd(deckId)
+    if (deck.playing) { stop(deckId); sd(deckId, { playing: false }) }
+    else { await play(deckId); sd(deckId, { playing: true }) }
   }
 
   const handleCue = (deckId) => {
-    cueDeck(deckId)
-    setDeck(deckId, { playing: false, position: 0 })
+    cue(deckId)
+    sd(deckId, { playing: false, position: 0 })
   }
 
   const handleSync = (deckId) => {
-    const deck = getDeck(deckId)
-    const other = getDeck(deckId === 'a' ? 'b' : 'a')
+    const deck = gd(deckId)
+    const other = gd(deckId === 'a' ? 'b' : 'a')
     const newSynced = !deck.synced
-    if (newSynced && deck.hasFile) setDeckBPM(deckId, deck.bpm, other.bpm)
-    setDeck(deckId, { synced: newSynced, bpm: newSynced ? other.bpm : deck.bpm })
+    if (newSynced && deck.hasFile) syncBPM(deckId, deck.bpm, other.bpm)
+    sd(deckId, { synced: newSynced, bpm: newSynced ? other.bpm : gd(deckId).bpm })
   }
 
-  const handleLoop = (deckId) => setDeck(deckId, d => ({ looping: !d.looping }))
-
-  const handleVolume = (deckId, val) => {
-    setDeckVolume(deckId, val)
-    setDeck(deckId, { volume: val })
+  const handleVolume = (deckId, v) => {
+    setVolume(deckId, v)
+    sd(deckId, { volume: v })
   }
 
-  const handleEQ = (deckId, band, val) => {
-    setEQ(deckId, band, val)
-    setDeck(deckId, d => ({ eq: { ...(d.eq || {}), [band]: parseInt(val) } }))
+  const handleEQ = (deckId, band, v) => {
+    setEQ(deckId, band, v)
+    sd(deckId, d => ({ eq: { ...d.eq, [band]: parseInt(v) } }))
   }
 
-  const handleCrossfader = (val) => {
-    setCrossfaderState(val)
-    setCrossfader(val)
+  const handleCF = (v) => {
+    setCF(v)
+    setCrossfader(v)
   }
 
-  const handleMasterVol = (val) => {
-    setMasterVolume(val)
-    setMasterVol(val)
+  const handleMaster = (v) => {
+    setMasterVol(v)
+    setMaster(v)
   }
 
-  const refreshSuggestions = useCallback(async (genre, deckAData, deckBData) => {
-    setIsLoadingAI(true)
-    try {
-      let tracks = []
-      if (apiKey) {
-        tracks = await getAISuggestions({ deckA: deckAData, deckB: deckBData, genre, apiKey, count: 5 })
-      }
-      if (!tracks || tracks.length === 0) {
-        tracks = getStaticSuggestions({ deckA: deckAData, deckB: deckBData, genre, count: 5 })
-      }
-      setSuggestions(tracks)
-    } catch {
-      setSuggestions(getStaticSuggestions({ deckA: deckAData, deckB: deckBData, genre, count: 5 }))
-    } finally {
-      setIsLoadingAI(false)
-    }
-  }, [apiKey])
-
-  const handleGenreFilter = (genre) => {
-    setSelectedGenre(genre)
-    refreshSuggestions(genre, deckA, deckB)
+  const handleGenre = (g) => {
+    setGenre(g)
+    fetchSuggestions(g, deckA, deckB)
   }
 
-  const handleLoadSuggestion = (track, deckId) => {
-    setDeck(deckId, {
-      title: track.title,
-      artist: track.artist,
-      genre: track.genre,
-      bpm: track.bpm,
-      key: track.key,
-      camelot: track.camelot,
-      energy: track.energy,
-      waveform: Array.from({ length: 150 }, () => Math.random()),
-      playing: false,
-      position: 0,
-      hasFile: false,
+  const handleLoadTrack = (track, deckId) => {
+    sd(deckId, {
+      title: track.title, artist: track.artist, genre: track.genre,
+      bpm: track.bpm, key: track.key, camelot: track.camelot, energy: track.energy,
+      waveform: Array.from({ length: 180 }, () => Math.random() * 0.7 + 0.15),
+      playing: false, position: 0, hasFile: false,
     })
-    if (track.mixTip) setMixTip(track.mixTip)
-    setTimeout(() => setMixTip(''), 6000)
+    if (track.mixTip) { setTip(track.mixTip); setTimeout(() => setTip(''), 7000) }
   }
 
-  const handleAISuggestBoth = async () => {
-    let all = []
-    if (apiKey) {
-      try { all = await getAISuggestions({ deckA, deckB, genre: selectedGenre, apiKey, count: 6 }) } catch {}
-    }
-    if (!all.length) all = getStaticSuggestions({ deckA, deckB, genre: selectedGenre, count: 6 })
-    if (all[0]) handleLoadSuggestion(all[0], 'a')
-    if (all[1]) handleLoadSuggestion(all[1], 'b')
-    setSuggestions(all.slice(2))
+  const handleSuggestBoth = async () => {
+    let tracks = null
+    if (apiKey) tracks = await getSuggestions({ deckA, deckB, genre, apiKey, count: 8 }).catch(() => null)
+    if (!tracks?.length) tracks = staticSuggestions({ deckA, deckB, genre, count: 8 })
+    if (tracks[0]) handleLoadTrack(tracks[0], 'a')
+    if (tracks[1]) handleLoadTrack(tracks[1], 'b')
+    setSuggestions(tracks.slice(2))
   }
 
   const handleRecord = async () => {
     initAudio()
     if (!recording) {
-      startRecording()
-      setRecording(true)
-      recordingBlobRef.current = null
+      startRec(); setRecording(true); recRef.current = null
     } else {
-      const blob = await stopRecording()
-      recordingBlobRef.current = blob
-      setRecording(false)
+      const blob = await stopRec()
+      recRef.current = blob; setRecording(false)
     }
   }
 
   const handleExport = async () => {
-    const blob = recordingBlobRef.current
-    if (!blob) { alert('ჩაწერე მიქსი პირველ რიგში — RECORD დააჭირე'); return }
-    setExportProgress(0)
-    try {
-      await exportMixAsMp3(blob, setExportProgress)
-    } catch (e) {
-      alert('Export failed: ' + e.message)
-    } finally {
-      setTimeout(() => setExportProgress(null), 3000)
-    }
+    if (!recRef.current) { alert('ჯერ ჩაწერე მიქსი — RECORD დააჭირე'); return }
+    setExportProg(0)
+    try { await exportMP3(recRef.current, setExportProg) }
+    catch (e) { alert('Export error: ' + e.message) }
+    finally { setTimeout(() => setExportProg(null), 3000) }
   }
 
-  const handleSaveApiKey = (key) => {
+  const handleSaveKey = (key) => {
     setApiKey(key)
-    try { localStorage.setItem('gemini_api_key', key) } catch {}
-    setShowApiModal(false)
-    refreshSuggestions(selectedGenre, deckA, deckB)
+    try { localStorage.setItem('aimix_key', key) } catch {}
+    setShowModal(false)
+    fetchSuggestions(genre, deckA, deckB)
   }
 
-  const handleOpenMixPlan = (track) => {
-    setSelectedTrackForMixPlan(track)
-    setShowMixPlanModal(true)
-  }
+  const avgBpm = Math.round((deckA.bpm + deckB.bpm) / 2)
 
   return (
     <div className={styles.app}>
-      <Header
-        bpm={Math.round((deckA.bpm + deckB.bpm) / 2)}
-        masterVol={masterVol}
-        onMasterVol={handleMasterVol}
-        hasApiKey={!!apiKey}
-        onApiKeyClick={() => setShowApiModal(true)}
-        mixTip={mixTip}
-      />
-      <div className={styles.main}>
-        <Deck deck={deckA} deckId="a"
+      <Header bpm={avgBpm} master={master} onMaster={handleMaster}
+        hasKey={!!apiKey} onKeyClick={() => setShowModal(true)} tip={tip} />
+
+      <div className={styles.body}>
+        <DeckPanel deck={deckA} deckId="a"
           onPlay={() => handlePlay('a')} onCue={() => handleCue('a')}
-          onSync={() => handleSync('a')} onLoop={() => handleLoop('a')}
+          onSync={() => handleSync('a')} onLoop={() => sd('a', d => ({ looping: !d.looping }))}
           onVolume={v => handleVolume('a', v)} onEQ={(b, v) => handleEQ('a', b, v)}
-          onFileLoad={f => handleFileLoad('a', f)} />
-        <MixerCenter
-          crossfader={crossfader} onCrossfader={handleCrossfader}
-          suggestions={suggestions} isLoadingAI={isLoadingAI}
-          genres={GENRES} selectedGenre={selectedGenre} onGenre={handleGenreFilter}
-          onLoadSuggestion={handleLoadSuggestion}
-          onOpenMixPlan={handleOpenMixPlan}
-          onAISuggestDeck={() => refreshSuggestions(selectedGenre, deckA, deckB)}
-          onAISuggestBoth={handleAISuggestBoth}
-          onRefreshAI={() => refreshSuggestions(selectedGenre, deckA, deckB)}
-          hasApiKey={!!apiKey}
-          deckAVol={deckA.volume} deckBVol={deckB.volume}
-          onDeckAVol={v => handleVolume('a', v)} onDeckBVol={v => handleVolume('b', v)} />
-        <Deck deck={deckB} deckId="b"
+          onFile={f => handleFileLoad('a', f)} />
+
+        <Mixer cf={cf} onCF={handleCF}
+          volA={deckA.volume} volB={deckB.volume}
+          onVolA={v => handleVolume('a', v)} onVolB={v => handleVolume('b', v)} />
+
+        <SuggestionPanel
+          suggestions={suggestions} loading={loadingAI}
+          hasKey={!!apiKey}
+          onRefresh={() => fetchSuggestions(genre, deckA, deckB)}
+          onSuggestBoth={handleSuggestBoth}
+          onLoadA={t => handleLoadTrack(t, 'a')}
+          onLoadB={t => handleLoadTrack(t, 'b')} />
+
+        <DeckPanel deck={deckB} deckId="b"
           onPlay={() => handlePlay('b')} onCue={() => handleCue('b')}
-          onSync={() => handleSync('b')} onLoop={() => handleLoop('b')}
+          onSync={() => handleSync('b')} onLoop={() => sd('b', d => ({ looping: !d.looping }))}
           onVolume={v => handleVolume('b', v)} onEQ={(b, v) => handleEQ('b', b, v)}
-          onFileLoad={f => handleFileLoad('b', f)} />
+          onFile={f => handleFileLoad('b', f)} />
       </div>
-      <BottomBar
-        selectedGenre={selectedGenre} genres={GENRES} onGenre={handleGenreFilter}
-        recording={recording} recSeconds={recSeconds} onRecord={handleRecord}
-        onExport={handleExport} exportProgress={exportProgress}
+
+      <BottomBar genre={genre} genres={GENRES} onGenre={handleGenre}
+        recording={recording} recSec={recSec} onRecord={handleRecord}
+        onExport={handleExport} exportProg={exportProg}
         deckA={deckA} deckB={deckB} />
-      {showApiModal && (
-        <APIKeyModal currentKey={apiKey} onSave={handleSaveApiKey} onClose={() => setShowApiModal(false)} />
-      )}
-      {showMixPlanModal && (
-        <MixPlanModal track={selectedTrackForMixPlan} onClose={() => setShowMixPlanModal(false)} />
-      )}
+
+      {showModal && <APIModal current={apiKey} onSave={handleSaveKey} onClose={() => setShowModal(false)} />}
     </div>
   )
 }
